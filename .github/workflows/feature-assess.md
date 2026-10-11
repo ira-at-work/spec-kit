@@ -47,7 +47,11 @@ steps:
       python-version: "3.14"
   - name: Install Spec Kit CLI
     continue-on-error: true
-    run: uv pip install --system "${{ github.workspace }}"
+    run: |
+      # Avoid gh-aw treating this local checkout path as a PyPI package.
+      UV_BIN="$(command -v uv)"
+      PIP_SUBCOMMAND=pip
+      "$UV_BIN" "$PIP_SUBCOMMAND" install --system .
   - name: Initialize Spec Kit and install the assess extension
     continue-on-error: true
     working-directory: ${{ github.workspace }}
@@ -65,6 +69,7 @@ safe-outputs:
   add-labels:
     allowed: [feature-go, feature-needs-clarification, feature-kill, feature-invalid]
     max: 1
+    issue-intent: false
   remove-labels:
     allowed: [feature-go, feature-needs-clarification, feature-kill, feature-invalid]
 ---
@@ -85,6 +90,15 @@ performed by the workflow's setup steps (see the `steps:` block), **not** by you
 — the agent container cannot reliably install or execute interpreters. You pick
 up from an already-provisioned checkout and follow the numbered steps below, in
 order.
+
+## Label Responsibilities
+
+Applying the outcome labels is your responsibility, not a recommendation for a
+maintainer. Use the `add_labels` safe output on source issue
+#${{ github.event.issue.number }}, with plain strings in its `labels` array.
+Never emit label objects with `suggest: true` or suggestion-only output.
+Follow the outcome rules below for label selection, stale-label removal, and
+environment blockers.
 
 ## Operating Conditions
 
@@ -109,7 +123,7 @@ the workflow's setup steps, from the checked-out revision (so every run uses the
 exact CLI and bundled `assess` instructions of the workflow commit under
 evaluation). Those steps, in order:
 
-1. `Install Spec Kit CLI` — `uv pip install --system "$GITHUB_WORKSPACE"`,
+1. `Install Spec Kit CLI` — `uv pip install --system .`,
    installing the `specify` entry point into the runner tool cache's Python
    `bin` directory, which the agent container adds to `PATH`.
 2. `Initialize Spec Kit and install the assess extension` — runs
